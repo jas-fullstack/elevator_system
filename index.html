@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elevator System</title>
+  <style>
+    /* General Styling */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f4f4f4;
+    }
+
+    .building {
+      display: flex;
+      flex-direction: row;
+      width: 80%;
+      max-width: 1200px;
+      height: 90vh;
+      background: #fff;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .floors {
+      flex: 1;
+      display: grid;
+      grid-template-rows: repeat(11, 1fr);
+      justify-items: center;
+      align-items: center;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+    }
+
+    .floor {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .call-button {
+      background-color: green;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .call-button.waiting {
+      background-color: red;
+      color: white;
+    }
+
+    .elevators {
+      flex: 2;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      justify-items: center;
+      align-items: flex-end;
+      padding: 10px;
+    }
+
+    .elevator {
+      width: 50px;
+      height: 50px;
+      background-color: black;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      position: relative;
+      transition: transform 1s ease-in-out;
+    }
+
+    /* Time Display above each elevator */
+    .time-display {
+      position: absolute;
+      top: -20px;
+      width: 100%;
+      text-align: center;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      z-index: 10;
+    }
+
+    .elevator.moving {
+      background-color: red;
+    }
+
+    .elevator.arrived {
+      background-color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="building">
+    <div class="floors">
+        <!-- Floors -->
+        <div class="floor" >10</button></div>
+        <div class="floor" >9</button></div>
+        <div class="floor">8</button></div>
+        <div class="floor" >7</button></div>
+        <div class="floor" >6</button></div>
+        <div class="floor" >5</button></div>
+        <div class="floor" >4</button></div>
+        <div class="floor" >3</button></div>
+        <div class="floor" >2</button></div>
+        <div class="floor" >1</button></div>
+      
+      </div>
+    <div class="elevators">
+      <div class="elevator" id="elevator-1">
+        <div class="time-display" id="time-1">Time: 2:00</div>
+      </div>
+      <div class="elevator" id="elevator-2">
+        <div class="time-display" id="time-2">Time: 2:00</div>
+      </div>
+      <div class="elevator" id="elevator-3">
+        <div class="time-display" id="time-3">Time: 2:00</div>
+      </div>
+      <div class="elevator" id="elevator-4">
+        <div class="time-display" id="time-4">Time: 2:00</div>
+      </div>
+      <div class="elevator" id="elevator-5">
+        <div class="time-display" id="time-5">Time: 2:00</div>
+      </div>
+    </div>
+    <div class="floors">
+        <!-- Floors -->
+        <div class="floor" data-floor="10"><button class="call-button" data-floor="10">Call</button></div>
+        <div class="floor" data-floor="9"><button class="call-button" data-floor="9">Call</button></div>
+        <div class="floor" data-floor="8"><button class="call-button" data-floor="8">Call</button></div>
+        <div class="floor" data-floor="7"><button class="call-button" data-floor="7">Call</button></div>
+        <div class="floor" data-floor="6"><button class="call-button" data-floor="6">Call</button></div>
+        <div class="floor" data-floor="5"><button class="call-button" data-floor="5">Call</button></div>
+        <div class="floor" data-floor="4"><button class="call-button" data-floor="4">Call</button></div>
+        <div class="floor" data-floor="3"><button class="call-button" data-floor="3">Call</button></div>
+        <div class="floor" data-floor="2"><button class="call-button" data-floor="2">Call</button></div>
+        <div class="floor" data-floor="1"><button class="call-button" data-floor="1">Call</button></div>
+        
+      </div>
+  </div>
+  <script>
+    const elevators = [
+      { id: 1, currentFloor: 0, occupied: false },
+      { id: 2, currentFloor: 0, occupied: false },
+      { id: 3, currentFloor: 0, occupied: false },
+      { id: 4, currentFloor: 0, occupied: false },
+      { id: 5, currentFloor: 0, occupied: false },
+    ];
+    const requestQueue = [];
+
+    document.querySelectorAll('.call-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const floor = parseInt(button.getAttribute('data-floor'), 10);
+        handleCallRequest(floor, button);
+      });
+    });
+
+    function handleCallRequest(floor, button) {
+      button.textContent = "Waiting";
+      button.classList.add('waiting');
+
+      const availableElevator = findNearestAvailableElevator(floor);
+      if (availableElevator) {
+        moveElevator(availableElevator, floor, button);
+      } else {
+        requestQueue.push({ floor, button });
+      }
+    }
+
+    function findNearestAvailableElevator(targetFloor) {
+      let nearestElevator = null;
+      let minDistance = Infinity;
+
+      elevators.forEach(elevator => {
+        if (!elevator.occupied) {
+          const distance = Math.abs(elevator.currentFloor - targetFloor);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestElevator = elevator;
+          }
+        }
+      });
+
+      return nearestElevator;
+    }
+
+    function moveElevator(elevator, targetFloor, button) {
+      elevator.occupied = true;
+
+      const elevatorElement = document.getElementById(`elevator-${elevator.id}`);
+      const timeDisplayElement = document.getElementById(`time-${elevator.id}`);
+      const buildingHeight = document.querySelector('.building').offsetHeight;
+      const floorHeight = buildingHeight / 11;
+
+      // Fixed travel time: 1 minute 20 seconds (80 seconds)
+      const totalTime = 5; // 120 seconds for the elevator to reach the target floor
+      let timeLeft = totalTime;
+
+      // Update time every second
+      const timerInterval = setInterval(() => {
+        if (timeLeft > 0) {
+          timeDisplayElement.textContent = `Time: ${formatTime(timeLeft)}`;
+          timeLeft--;
+        } else {
+          clearInterval(timerInterval);
+        }
+      }, 1000);
+
+      // Move elevator smoothly over 80 seconds
+      elevatorElement.style.transition = `transform ${totalTime}s linear`;
+      elevatorElement.style.transform = `translateY(${targetFloor * -floorHeight}px)`;
+      elevatorElement.classList.add('moving');
+
+      setTimeout(() => {
+        elevator.currentFloor = targetFloor;
+        elevatorElement.classList.remove('moving');
+        elevatorElement.classList.add('arrived');
+        button.textContent = "Arrived";
+
+        setTimeout(() => {
+          elevatorElement.classList.remove('arrived');
+          button.textContent = "Call";
+          button.classList.remove('waiting');
+          elevator.occupied = false;
+
+          if (requestQueue.length > 0) {
+            const nextRequest = requestQueue.shift();
+            moveElevator(elevator, nextRequest.floor, nextRequest.button);
+          }
+        }, 2000);
+      }, totalTime * 1000);
+    }
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+    }
+  </script>
+</body>
+</html>
